@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SUI - AI Plot Chat</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#090a0d;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,textarea,select{font:inherit}button{cursor:pointer}
+.app{max-width:680px;margin:auto;min-height:100vh;background:#0d0f13}
+.top{height:58px;padding:0 16px;display:flex;align-items:center;border-bottom:1px solid #24272e;position:sticky;top:0;background:#0d0f13;z-index:5}
+.logo{font-size:21px;font-weight:800}.top small{margin-left:auto;color:#8f949e}
+main{padding:16px 14px 84px}.page{display:none}.page.active{display:block}
+h1{font-size:25px;margin:8px 0 18px}.muted{color:#969ba5}.card{background:#15181e;border:1px solid #282c34;border-radius:16px;padding:15px;margin:10px 0}
+.btn{border:0;border-radius:11px;padding:11px 15px;background:#f5f5f7;color:#101114;font-weight:700}
+.btn.dark{background:#22262e;color:#fff}.btn.red{background:#54252a;color:#fff}.btn.full{width:100%}
+input,textarea,select{width:100%;background:#111318;border:1px solid #30343c;color:#fff;border-radius:10px;padding:11px;outline:none}
+textarea{min-height:100px;resize:vertical}.field{margin:12px 0}.field label{display:block;font-size:13px;color:#aeb3bc;margin-bottom:6px}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(680px,100%);height:66px;background:#111318;border-top:1px solid #292d35;display:flex;z-index:10}
+.nav button{flex:1;background:none;border:0;color:#858b95;font-size:12px}.nav button.active{color:#fff}.nav b{display:block;font-size:20px;margin-bottom:2px}
+.plot{padding:14px}.plot h3{margin:0 0 5px}.pill{display:inline-block;border:1px solid #3a3e47;border-radius:999px;padding:4px 8px;font-size:11px;color:#c2c6ce;margin:3px 3px 0 0}
+.char{display:flex;gap:10px;align-items:center;background:#111318;border:1px solid #282c34;border-radius:13px;padding:9px;margin:8px 0}
+.avatar{width:52px;height:52px;border-radius:12px;background:#242831;object-fit:cover;display:flex;align-items:center;justify-content:center;color:#8d929c;flex:none}
+.chat{height:58vh;overflow:auto;padding:4px 0}.bubble{max-width:85%;padding:10px 12px;border-radius:15px;margin:8px 0;white-space:pre-wrap}.ai{background:#1a1d23}.me{background:#f1f1f3;color:#111;margin-left:auto}
+.chatbar{display:flex;gap:7px;position:sticky;bottom:66px;background:#0d0f13;padding:8px 0}.chatbar input{flex:1}.chatbar button{flex:0 0 auto}
+.empty{text-align:center;padding:45px 15px;color:#858b95}
+.hidden{display:none!important}.danger{color:#ff8b8b}.small{font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top"><div class="logo">SUI</div><small id="accountLabel">ゲスト</small></header>
+
+<main>
+<section id="home" class="page active">
+<h1>プロット</h1>
+<div id="plotList"></div>
+</section>
+
+<section id="search" class="page">
+<h1>検索</h1>
+<div class="field"><input id="searchInput" placeholder="公開プロットを検索"></div>
+<div id="searchResults"></div>
+</section>
+
+<section id="create" class="page">
+<h1>プロットを作成</h1>
+<div class="field"><label>タイトル</label><input id="plotTitle" placeholder="例：雨の日の約束"></div>
+<div class="field"><label>プロットの設定・世界観</label><textarea id="plotSetting" placeholder="舞台、状況、物語のルールなどを細かく書けます"></textarea></div>
+<div class="field"><label>公開設定</label><select id="plotPublic"><option value="private">非公開</option><option value="public">公開</option></select></div>
+<div class="field"><label>キャラクター（最大8体）</label><div id="charEditor"></div></div>
+<button class="btn dark full" onclick="addCharacter()">＋ キャラクターを追加</button>
+<br><br><button class="btn full" onclick="savePlot()">プロットを保存</button>
+</section>
+
+<section id="profile" class="page">
+<h1>プロフィール</h1>
+<div class="card">
+<div class="field"><label>表示名</label><input id="displayName" placeholder="名前"></div>
+<button class="btn full" onclick="saveProfile()">保存</button>
+</div>
+<div class="card"><b>アカウント</b><p class="muted small">この簡易版ではブラウザ内にデータを保存します。ログイン・フォロー・公開データ共有は本番ではサーバーが必要です。</p></div>
+</section>
+
+<section id="detail" class="page">
+<div class="row"><button class="btn dark" onclick="showPage('home')">← 戻る</button><span></span></div>
+<div id="detailBody"></div>
+</section>
+
+<section id="chat" class="page">
+<div class="row"><button class="btn dark" onclick="showPage('home')">←</button><b id="chatTitle">会話</b><span></span></div>
+<div id="chatBox" class="chat"></div>
+<div class="chatbar"><input id="chatInput" placeholder="メッセージを入力…"><button class="btn" onclick="sendMessage()">送信</button></div>
+</section>
+</main>
+
+<nav class="nav">
+<button id="nav-home" class="active" onclick="showPage('home')"><b>⌂</b>ホーム</button>
+<button id="nav-search" onclick="showPage('search')"><b>⌕</b>検索</button>
+<button id="nav-create" onclick="showPage('create')"><b>＋</b>作成</button>
+<button id="nav-profile" onclick="showPage('profile')"><b>○</b>プロフィール</button>
+</nav>
+</div>
+
+<script>
+const KEY="sui_plots_v2", USER="sui_user_v2", CHATS="sui_chats_v2";
+let plots=JSON.parse(localStorage.getItem(KEY)||"[]");
+let chars=[];
+let currentPlot=null;
+
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function save(){localStorage.setItem(KEY,JSON.stringify(plots))}
+function showPage(id){
+ document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+ document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));
+ const n=document.getElementById("nav-"+id); if(n)n.classList.add("active");
+ if(id==="home")renderPlots();
+ if(id==="search")renderSearch();
+ if(id==="profile")document.getElementById("displayName").value=localStorage.getItem(USER)||"";
+ if(id==="create")renderChars();
+}
+function renderPlots(){
+ const el=document.getElementById("plotList");
+ if(!plots.length){el.innerHTML='<div class="empty">まだプロットがありません<br><br><button class="btn" onclick="showPage(\'create\')">最初のプロットを作る</button></div>';return}
+ el.innerHTML=plots.map((p,i)=>`<div class="card plot">
+ <h3>${esc(p.title||"無題")}</h3><span class="pill">${p.public?"公開":"非公開"}</span><span class="pill">♥ ${p.likes||0}</span>
+ <p class="muted">${esc((p.setting||"設定なし").slice(0,100))}</p>
+ <div class="row"><button class="btn dark" onclick="openPlot(${i})">開く</button><button class="btn" onclick="startChat(${i})">会話</button></div>
+ </div>`).join("");
+}
+function renderSearch(){
+ const q=(document.getElementById("searchInput").value||"").toLowerCase();
+ const list=plots.filter(p=>p.public && (!q || (p.title+" "+p.setting).toLowerCase().includes(q)));
+ document.getElementById("searchResults").innerHTML=list.length?list.map(p=>{
+ const i=plots.indexOf(p);return `<div class="card"><b>${esc(p.title)}</b><p class="muted">${esc((p.setting||"").slice(0,100))}</p><button class="btn dark" onclick="startChat(${i})">会話する</button></div>`
+ }).join(""):'<div class="empty">公開プロットがありません</div>';
+}
+document.getElementById("searchInput").addEventListener("input",renderSearch);
+
+function renderChars(){
+ const el=document.getElementById("charEditor");
+ el.innerHTML=chars.map((c,i)=>`<div class="card">
+ <div class="row"><b>キャラクター ${i+1}</b><button class="btn red" onclick="removeCharacter(${i})">削除</button></div>
+ <div class="field"><label>名前</label><input value="${esc(c.name)}" oninput="chars[${i}].name=this.value"></div>
+ <div class="field"><label>画像</label><input type="file" accept="image/*" onchange="loadImage(this,${i})"></div>
+ ${c.image?`<img src="${c.image}" style="width:80px;height:80px;object-fit:cover;border-radius:12px">`:""}
+ <div class="field"><label>性格・設定</label><textarea oninput="chars[${i}].personality=this.value">${esc(c.personality)}</textarea></div>
+ <div class="field"><label>口調・話し方</label><textarea oninput="chars[${i}].speech=this.value">${esc(c.speech)}</textarea></div>
+ <div class="row">
+ <div class="field"><label>一人称</label><input value="${esc(c.firstPerson)}" oninput="chars[${i}].firstPerson=this.value"></div>
+ <div class="field"><label>二人称</label><input value="${esc(c.secondPerson)}" oninput="chars[${i}].secondPerson=this.value"></div>
+ </div>
+ <div class="field"><label>難易度</label><select onchange="chars[${i}].difficulty=this.value">
+ <option ${c.difficulty==="easy"?"selected":""} value="easy">簡単</option>
+ <option ${c.difficulty==="normal"?"selected":""} value="normal">普通</option>
+ <option ${c.difficulty==="extreme"?"selected":""} value="extreme">極限</option></select></div>
+ </div>`).join("");
+}
+function addCharacter(){
+ if(chars.length>=8){alert("キャラクターは最大8体です");return}
+ chars.push({name:"",image:"",personality:"",speech:"",firstPerson:"",secondPerson:"",difficulty:"normal"});renderChars();
+}
+function removeCharacter(i){chars.splice(i,1);renderChars()}
+function loadImage(input,i){
+ const f=input.files[0];if(!f)return;
+ const r=new FileReader();r.onload=()=>{chars[i].image=r.result;renderChars()};r.readAsDataURL(f);
+}
+function savePlot(){
+ const title=document.getElementById("plotTitle").value.trim();
+ if(!title){alert("タイトルを入れてください");return}
+ plots.push({title,setting:document.getElementById("plotSetting").value,public:document.getElementById("plotPublic").value==="public",characters:JSON.parse(JSON.stringify(chars)),likes:0,owner:localStorage.getItem(USER)||"ゲスト"});
+ save();alert("保存しました");chars=[];document.getElementById("plotTitle").value="";document.getElementById("plotSetting").value="";showPage("home");
+}
+function openPlot(i){
+ const p=plots[i];currentPlot=i;
+ document.getElementById("detailBody").innerHTML=`<h1>${esc(p.title)}</h1>
+ <div class="card"><span class="pill">${p.public?"公開":"非公開"}</span><span class="pill">♥ ${p.likes||0}</span><p>${esc(p.setting||"")}</p></div>
+ <h2>キャラクター</h2>${(p.characters||[]).map(c=>`<div class="char">${c.image?`<img class="avatar" src="${c.image}">`:`<div class="avatar">?</div>`}<div><b>${esc(c.name||"名前なし")}</b><div class="small muted">${esc(c.personality||"")}</div><span class="pill">${c.difficulty==="easy"?"簡単":c.difficulty==="extreme"?"極限":"普通"}</span></div></div>`).join("")}
+ <button class="btn full" onclick="startChat(${i})">このプロットで会話する</button>`;
+ showPage("detail");
+}
+function startChat(i){
+ currentPlot=i;document.getElementById("chatTitle").textContent=plots[i].title;
+ renderChat();showPage("chat");
+}
+function renderChat(){
+ const all=JSON.parse(localStorage.getItem(CHATS)||"{}"), msgs=all[currentPlot]||[];
+ const box=document.getElementById("chatBox");
+ if(!msgs.length){box.innerHTML='<div class="empty">このプロットで会話を開始できます</div>';return}
+ box.innerHTML=msgs.map(m=>`<div class="bubble ${m.role==="user"?"me":"ai"}">${esc(m.text)}</div>`).join("");
+ box.scrollTop=box.scrollHeight;
+}
+function sendMessage(){
+ const inp=document.getElementById("chatInput"),text=inp.value.trim();if(!text)return;
+ let all=JSON.parse(localStorage.getItem(CHATS)||"{}");all[currentPlot]=all[currentPlot]||[];
+ all[currentPlot].push({role:"user",text});localStorage.setItem(CHATS,JSON.stringify(all));inp.value="";renderChat();
+ setTimeout(()=>fakeAI(),350);
+}
+function fakeAI(){
+ let all=JSON.parse(localStorage.getItem(CHATS)||"{}"),p=plots[currentPlot],cs=p.characters||[];
+ let c=cs[0]||{name:"キャラクター",speech:""};
+ let reply=`${c.name||"キャラクター"}：「${c.speech?c.speech+" ":""}${p.setting?"設定に沿って":"状況を考えながら"}返答します。」`;
+ if(c.difficulty==="easy")reply+=" あなたの意図にできるだけ沿います。";
+ if(c.difficulty==="extreme")reply+=" ただし、このキャラクターは自分の意思を強く持って行動します。";
+ all[currentPlot].push({role:"ai",text:reply});localStorage.setItem(CHATS,JSON.stringify(all));renderChat();
+}
+function saveProfile(){
+ const n=document.getElementById("displayName").value.trim()||"ゲスト";
+ localStorage.setItem(USER,n);document.getElementById("accountLabel").textContent=n;alert("保存しました");
+}
+document.getElementById("accountLabel").textContent=localStorage.getItem(USER)||"ゲスト";
+renderPlots();renderChars();
+</script>
+</body>
+</html>
