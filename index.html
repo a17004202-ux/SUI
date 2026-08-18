@@ -176,8 +176,16 @@ function sendMessage(){
  const inp=document.getElementById("chatInput"),text=inp.value.trim();if(!text)return;
  let all=JSON.parse(localStorage.getItem(CHATS)||"{}");all[currentPlot]=all[currentPlot]||[];
  all[currentPlot].push({role:"user",text});localStorage.setItem(CHATS,JSON.stringify(all));inp.value="";renderChat();
- setTimeout(()=>fakeAI(),350);
+ callAI(text);
 }
+ async function callAI(text){
+ const p=plots[currentPlot];
+ const r=await fetch("https://sui-ai.a17004202.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:text})});
+ const d=await r.json();
+ let all=JSON.parse(localStorage.getItem(CHATS)||"{}");
+ all[currentPlot].push({role:"ai",text:d.output||"AIから返答がありません"});
+ localStorage.setItem(CHATS,JSON.stringify(all));renderChat();
+ }
 function fakeAI(){
  let all=JSON.parse(localStorage.getItem(CHATS)||"{}"),p=plots[currentPlot],cs=p.characters||[];
  let c=cs[0]||{name:"キャラクター",speech:""};
